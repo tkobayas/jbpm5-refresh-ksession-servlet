@@ -13,6 +13,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.log4j.Logger;
 import org.drools.definition.process.Process;
 import org.drools.io.ResourceFactory;
+import org.drools.runtime.StatefulKnowledgeSession;
 
 public class KSessionRefreshServlet extends HttpServlet {
 
@@ -20,7 +21,7 @@ public class KSessionRefreshServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-      logger.info("KSession refresh servlet initialized");
+        logger.info("KSession refresh servlet initialized");
     }
 
     @Override
@@ -30,47 +31,57 @@ public class KSessionRefreshServlet extends HttpServlet {
         String action = req.getParameter("action");
         log("Servlet called with action: " + action, writer, "h3");
         try {
-           if("refresh".equals(action)) {
+            if ("refresh".equals(action)) {
 
-              // dispose session and agent 
-              StatefulKnowledgeSessionUtil.getStatefulKnowledgeSession().dispose();
-              StatefulKnowledgeSessionUtil.getKagent().dispose();
-              
-              // stop existing scanner/notifier to avoid threak leak
-              ResourceFactory.getResourceChangeScannerService().stop();
-              ResourceFactory.getResourceChangeNotifierService().stop();
+                // dispose session and agent
+                StatefulKnowledgeSessionUtil.getStatefulKnowledgeSession().dispose();
+                StatefulKnowledgeSessionUtil.getKagent().dispose();
 
-              // make private SessionHolder accessible by reflection
-              Class<?> sessionHolderClass = StatefulKnowledgeSessionUtil.class.getDeclaredClasses()[0];
-              Field statefulKnowledgeSessionField = sessionHolderClass.getField("statefulKnowledgeSession");
-              statefulKnowledgeSessionField.setAccessible(true);
-              
-              // re-initialize the SessionHolder.statefulKnowledgeSession property
-              statefulKnowledgeSessionField.set(StatefulKnowledgeSessionUtil.class, StatefulKnowledgeSessionUtil.initializeStatefulKnowledgeSession());
-              log("StatefulKnowledgeSession in SessionHolder refreshed", writer, "p");
-              
-              // display the number of processes
-              List<Process> processes = CommandDelegate.getProcesses();
-              log("Number of processes: " + (processes != null ? processes.size() : "null"), writer, "p");
-              for(Process p : processes) {
-               log("         " + p.getName(), writer, "li");
-              }
-              log("Session " + StatefulKnowledgeSessionUtil.getStatefulKnowledgeSession().getId() + " successfully refreshed", writer, "p");
-           } 
-           else {
-              log("Unknown action " + action + "! To force a session re-initialization, call the servlet with ?action=refresh", writer, "p");
-           }
-        }catch(Exception ex) {
+                // stop existing scanner/notifier to avoid threak leak
+                ResourceFactory.getResourceChangeScannerService().stop();
+                ResourceFactory.getResourceChangeNotifierService().stop();
+
+                // make private SessionHolder accessible by reflection
+                Class<?> sessionHolderClass = StatefulKnowledgeSessionUtil.class.getDeclaredClasses()[0];
+                Field statefulKnowledgeSessionField = sessionHolderClass.getField("statefulKnowledgeSession");
+                statefulKnowledgeSessionField.setAccessible(true);
+
+                // re-initialize the SessionHolder.statefulKnowledgeSession
+                // property
+                statefulKnowledgeSessionField.set(StatefulKnowledgeSessionUtil.class, StatefulKnowledgeSessionUtil.initializeStatefulKnowledgeSession());
+                log("StatefulKnowledgeSession in SessionHolder refreshed", writer, "p");
+
+                // display the number of processes
+                List<Process> processes = CommandDelegate.getProcesses();
+                log("Number of processes: " + (processes != null ? processes.size() : "null"), writer, "p");
+                for (Process p : processes) {
+                    log("         " + p.getName(), writer, "li");
+                }
+                log("Session " + StatefulKnowledgeSessionUtil.getStatefulKnowledgeSession().getId() + " successfully refreshed", writer, "p");
+            } else if ("add-event-listener".equals(action)) {
+                StatefulKnowledgeSession ksession = StatefulKnowledgeSessionUtil.getStatefulKnowledgeSession();
+                ksession.addEventListener(new MyProcessEventListener());
+                logger.info("MyProcessEventListener is added");
+            } else if ("stop-scanner".equals(action)) {
+                ResourceFactory.getResourceChangeScannerService().stop();
+                logger.info("ResourceChangeScanner stoppped");
+            } else if ("scan".equals(action)) {
+                ResourceFactory.getResourceChangeScannerService().scan();
+                logger.info("ResourceChangeScanner manually scan");
+            } else {
+                log("Unknown action " + action + "! To force a session re-initialization, call the servlet with ?action=refresh", writer, "p");
+            }
+        } catch (Exception ex) {
             logger.error(ex);
             log("ERROR: " + ex.getMessage(), writer, "b");
-        }finally {
+        } finally {
             writer.close();
         }
     }
 
     // helper method to print to log and to http response
     private void log(String msg, PrintWriter writer, String htmlDecoration) {
-      logger.info(msg);
-      writer.write("<" + htmlDecoration + ">" + msg + "</" + htmlDecoration + ">");
+        logger.info(msg);
+        writer.write("<" + htmlDecoration + ">" + msg + "</" + htmlDecoration + ">");
     }
 }
