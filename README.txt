@@ -46,3 +46,22 @@ This will result in the following logging:
 10:11:51,904 INFO  [KSessionRefreshServlet]          third-process
 10:11:51,905 INFO  [KSessionRefreshServlet] Session 1 successfully refreshed
 
+============
+
+To build this project, you need to configure an internal repository in your settings.xml
+
+~~~
+        <repository>
+          <id>internal-repository-brms5</id>
+          <name>internal-repository-brms5</name>
+          <url>http://download.devel.redhat.com/brewroot/repos/soa-brms-5.3-updates-build/latest/maven/</url>
+          <releases>
+            <enabled>true</enabled>
+            <updatePolicy>never</updatePolicy>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+            <updatePolicy>daily</updatePolicy>
+          </snapshots>
+        </repository>
+~~~
